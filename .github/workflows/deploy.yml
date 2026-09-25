@@ -1,0 +1,92 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DOMAIN: example.com
+      ACME_EMAIL: ops@example.com
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Confirm tag is on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Тег должен указывать на коммит, который уже есть в ветке main." >&2
+            exit 1
+          fi
+
+      - name: Render Compose config
+        run: docker compose -f docker-compose.yaml config --quiet
+
+      - name: Validate Caddyfile
+        run: |
+          docker run --rm \
+            -e DOMAIN \
+            -e ACME_EMAIL \
+            -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            -v "$PWD/sites:/etc/caddy/sites:ro" \
+            caddy:2.11.4 \
+            caddy validate --config /etc/caddy/Caddyfile
+
+      - name: Install rsync
+        run: sudo apt-get update && sudo apt-get install -y rsync
+
+      - name: Sync to VPS and reload Caddy
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+          VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          : "${VPS_HOST:?Задайте секрет VPS_HOST}"
+          : "${VPS_USER:?Задайте секрет VPS_USER}"
+          : "${VPS_SSH_KEY:?Задайте секрет VPS_SSH_KEY}"
+          : "${VPS_DEPLOY_PATH:?Задайте секрет VPS_DEPLOY_PATH}"
+          : "${VPS_SSH_KNOWN_HOSTS:?Задайте секрет VPS_SSH_KNOWN_HOSTS}"
+          SSH_PORT="${VPS_SSH_PORT:-22}"
+
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+          umask 077
+          printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r' > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+
+          SSH_OPTS="-i $HOME/.ssh/deploy_key -p ${SSH_PORT} -o IdentitiesOnly=yes -o BatchMode=yes"
+
+          # shellcheck disable=SC2086
+          ssh $SSH_OPTS "${VPS_USER}@${VPS_HOST}" "mkdir -p '${VPS_DEPLOY_PATH}'"
+
+          # .env на сервере не трогаем: там DOMAIN, ACME_EMAIL и ничего из git.
+          rsync -az --delete \
+            -e "ssh ${SSH_OPTS}" \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '.env' \
+            --exclude '.gitignore' \
+            --exclude 'AGENTS.md' \
+            ./ "${VPS_USER}@${VPS_HOST}:${VPS_DEPLOY_PATH}/"
+
+          # shellcheck disable=SC2086
+          ssh $SSH_OPTS "${VPS_USER}@${VPS_HOST}" "chmod +x '${VPS_DEPLOY_PATH}/scripts/remote-deploy.sh' && '${VPS_DEPLOY_PATH}/scripts/remote-deploy.sh'"

@@ -1,0 +1,31 @@
+{
+	# Адрес для уведомлений Let's Encrypt. Без него выпуск сертификатов может
+	# быть ограничен.
+	email {$ACME_EMAIL}
+
+	# Admin API только внутри контейнера. Порт на хост не публикуется, поэтому
+	# перезагрузка конфигурации идёт через docker exec, а не из сети.
+	admin 127.0.0.1:2019
+}
+
+# Общие заголовки для всех сайтов. Не ставьте preload в HSTS, пока все
+# поддомены гарантированно отдаются только по HTTPS.
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}
+
+# Типовой reverse_proxy: сжатие, заголовки и адрес контейнера в сети proxy.
+# Пример: import upstream app:3000
+(upstream) {
+	encode zstd gzip
+	import security_headers
+	reverse_proxy {args[0]}
+}
+
+# Один файл — один сервис. Добавление маршрута не требует правок этого файла.
+import /etc/caddy/sites/*.caddy

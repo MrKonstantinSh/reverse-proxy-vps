@@ -1,0 +1,33 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    env:
+      DOMAIN: example.com
+      ACME_EMAIL: ops@example.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Render Compose config
+        run: docker compose -f docker-compose.yaml config --quiet
+
+      - name: Validate Caddyfile
+        run: |
+          docker run --rm \
+            -e DOMAIN \
+            -e ACME_EMAIL \
+            -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            -v "$PWD/sites:/etc/caddy/sites:ro" \
+            caddy:2.11.4 \
+            caddy validate --config /etc/caddy/Caddyfile
