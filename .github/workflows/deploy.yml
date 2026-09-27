@@ -15,6 +15,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: production
     env:
       DOMAIN: example.com
       ACME_EMAIL: ops@example.com
