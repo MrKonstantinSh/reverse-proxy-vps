@@ -1,0 +1,3 @@
+openhands.{$DOMAIN} {
+	import upstream openhands:8000
+}
