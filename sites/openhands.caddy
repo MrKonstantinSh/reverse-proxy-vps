@@ -1,3 +1,7 @@
 openhands.{$DOMAIN} {
+	basic_auth {
+		{$OPENHANDS_USER} {$OPENHANDS_PASSWORD_HASH}
+	}
+
 	import upstream openhands:8000
 }

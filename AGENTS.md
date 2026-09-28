@@ -39,13 +39,18 @@ live in `.env` on the VPS (not in git).
 Use the same placeholders as CI:
 
 ```sh
-DOMAIN=example.com ACME_EMAIL=ops@example.com docker compose -f docker-compose.yaml config --quiet
+DOMAIN=example.com ACME_EMAIL=ops@example.com OPENHANDS_USER=ci OPENHANDS_PASSWORD=ci-placeholder-password docker compose -f docker-compose.yaml config --quiet
 docker run --rm \
   -e DOMAIN=example.com \
   -e ACME_EMAIL=ops@example.com \
+  -e OPENHANDS_USER=ci \
+  -e OPENHANDS_PASSWORD=ci-placeholder-password \
+  --entrypoint /bin/sh \
   -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
   -v "$PWD/sites:/etc/caddy/sites:ro" \
+  -v "$PWD/scripts/caddy-entrypoint.sh:/usr/local/bin/caddy-entrypoint.sh:ro" \
   caddy:2.11.4 \
+  /usr/local/bin/caddy-entrypoint.sh \
   caddy validate --config /etc/caddy/Caddyfile
 git diff --check
 ```

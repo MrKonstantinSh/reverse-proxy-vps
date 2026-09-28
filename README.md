@@ -13,7 +13,7 @@
 - `Caddyfile` — глобальные настройки TLS и общие сниппеты.
 - `sites/*.caddy` — маршруты сервисов (один файл на сервис).
 - `sites/app.caddy.example` — шаблон маршрута.
-- `.env` на сервере — `DOMAIN` и `ACME_EMAIL` (в git не коммитится).
+- `.env` на сервере — домен, email и учетные данные OpenHands (в git не коммитится).
 - `scripts/remote-deploy.sh` — обновление контейнера на VPS без удаления сертификатов.
 - `.github/workflows/validate.yml` — проверка Compose и Caddyfile.
 - `.github/workflows/deploy.yml` — выкладка по тегу.
@@ -47,7 +47,14 @@ cd /opt/reverse-proxy
 ```dotenv
 DOMAIN=example.com
 ACME_EMAIL=ops@example.com
+OPENHANDS_USER=your-login
+OPENHANDS_PASSWORD='your-password'
 ```
+
+Пароль хранится в `.env` в открытом виде, но Caddy перед запуском преобразует
+его в bcrypt-хеш. После первого ввода браузер обычно отправляет данные Basic
+авторизации автоматически. Срок их кэширования определяет браузер: протокол
+HTTP Basic не позволяет серверу установить точный срок в один час.
 
 Пользователь деплоя должен уметь вызывать `docker` без интерактивного sudo
 (группа `docker` или эквивалент). Каталог деплоя должен совпадать с секретом

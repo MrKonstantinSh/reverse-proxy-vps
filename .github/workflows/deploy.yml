@@ -19,6 +19,8 @@ jobs:
     env:
       DOMAIN: example.com
       ACME_EMAIL: ops@example.com
+      OPENHANDS_USER: ci
+      OPENHANDS_PASSWORD: ci-placeholder-password
     steps:
       - name: Checkout tag
         uses: actions/checkout@v4
@@ -38,12 +40,16 @@ jobs:
 
       - name: Validate Caddyfile
         run: |
-          docker run --rm \
+          docker run --rm --entrypoint /bin/sh \
             -e DOMAIN \
             -e ACME_EMAIL \
+            -e OPENHANDS_USER \
+            -e OPENHANDS_PASSWORD \
             -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
             -v "$PWD/sites:/etc/caddy/sites:ro" \
+            -v "$PWD/scripts/caddy-entrypoint.sh:/usr/local/bin/caddy-entrypoint.sh:ro" \
             caddy:2.11.4 \
+            /usr/local/bin/caddy-entrypoint.sh \
             caddy validate --config /etc/caddy/Caddyfile
 
       - name: Install rsync
@@ -79,7 +85,7 @@ jobs:
           # shellcheck disable=SC2086
           ssh $SSH_OPTS "${VPS_USER}@${VPS_HOST}" "mkdir -p '${VPS_DEPLOY_PATH}'"
 
-          # .env на сервере не трогаем: там DOMAIN, ACME_EMAIL и ничего из git.
+          # .env на сервере не трогаем: там параметры домена и OpenHands.
           rsync -az --delete \
             -e "ssh ${SSH_OPTS}" \
             --exclude '.git/' \

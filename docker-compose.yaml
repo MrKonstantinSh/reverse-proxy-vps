@@ -17,6 +17,18 @@ services:
     environment:
       DOMAIN: ${DOMAIN:?Укажите домен в файле .env}
       ACME_EMAIL: ${ACME_EMAIL:?Укажите ACME_EMAIL в файле .env}
+      OPENHANDS_USER: ${OPENHANDS_USER:?Укажите логин OpenHands в файле .env}
+      OPENHANDS_PASSWORD: ${OPENHANDS_PASSWORD:?Укажите пароль OpenHands в файле .env}
+    entrypoint:
+      - /bin/sh
+      - /usr/local/bin/caddy-entrypoint.sh
+    command:
+      - caddy
+      - run
+      - --config
+      - /etc/caddy/Caddyfile
+      - --adapter
+      - caddyfile
     ports:
       - target: 80
         published: 80
@@ -30,6 +42,7 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./sites:/etc/caddy/sites:ro
+      - ./scripts/caddy-entrypoint.sh:/usr/local/bin/caddy-entrypoint.sh:ro
       - caddy_data:/data
       - caddy_config:/config
     tmpfs:
