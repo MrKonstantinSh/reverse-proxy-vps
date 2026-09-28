@@ -67,11 +67,13 @@ services:
 
 networks:
   proxy:
+    external: true
     name: proxy
-    driver: bridge
 
 volumes:
   caddy_data:
+    external: true
     name: caddy_data
   caddy_config:
+    external: true
     name: caddy_config
