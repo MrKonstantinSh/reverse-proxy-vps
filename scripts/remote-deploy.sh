@@ -28,5 +28,7 @@ compose up -d --wait --remove-orphans
 compose exec -T caddy \
 	/bin/sh /usr/local/bin/caddy-entrypoint.sh \
 	caddy validate --config /etc/caddy/Caddyfile
-compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+compose exec -T caddy \
+	/bin/sh /usr/local/bin/caddy-entrypoint.sh \
+	caddy reload --config /etc/caddy/Caddyfile
 compose ps
